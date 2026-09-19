@@ -1,52 +1,50 @@
 # Gadget Watcher
 
-ガジェット系YouTuberの新着動画を監視し、概要欄で紹介されたAmazon商品を集めて
-GitHub リポジトリ `shion8120/gadget-feed` に書き込むワーカーです。
-記事を書く側（毎晩の Claude の定期タスク）は、そのファイルを読むだけで題材を拾えます。
+人気のガジェット系YouTuber（`channels.json`、26チャンネル）が紹介したAmazon商品を集め、
+記事ネタのプールとして HTTP で公開する Render の Web Service です。**特にAmazonセールの紹介動画を重点的に拾います。**
 
-RenderのBackground Workerで動かします（サービス名は旧Botの `reminder-discord-bot` のまま流用）。
-旧「授業リマインドBot」のコードは `archive/reminder-bot` ブランチに残っています。
+- `GET /youtuber-pool.md` … 記事作成用のまとめ（`/` も同じ）
+- `GET /youtuber-pool.json` … 全データ
+- `GET /healthz` … ヘルスチェック
 
-## やること
+毎晩の記事作成タスク（Claude）はこの URL を読むだけで題材を拾えます。鍵やトークンは不要です
+（公開しているのは YouTube の公開情報と ASIN だけ）。
 
-- `channels.json` のチャンネルを `POLL_MINUTES` ごとに確認する
-- 新着動画の概要欄から Amazon リンクを拾い、**ASINだけ**を取り出す
-  - `amzlink.to` / `amzn.to` はリダイレクトをたどって ASIN を特定する
-  - 他人のアフィリエイトタグは残さない。出すのは `https://www.amazon.co.jp/dp/<ASIN>` だけ
-  - まとめリスト（`/shop/.../list/...`）など ASIN のないリンクは捨てる
-- 中身が変わったときだけ、`gadget-feed` に次の2ファイルを書き込む
-  - `youtuber-pool.md`：複数チャンネルが紹介した商品の表と、直近14日の動画ごとの商品
-  - `youtuber-pool.json`：全データ
-- `DISCORD_WEBHOOK_URL` があれば Discord にも通知する（任意）
+旧「授業リマインドBot」は `main` ブランチのまま残っています。このワーカーは `gadget-watcher` ブランチから動かします。
 
-動画一覧の取り方は、`YOUTUBE_API_KEY` があれば Data API → RSS → チャンネルの動画タブ の順に試します。
-RSS は 404 が頻発するため、キーを入れておくのがおすすめです（1回の確認で5ユニット程度。無料枠は1日1万）。
+## 集め方
+
+1. 各チャンネルの動画タブ（新しい約30本）を `POLL_MINUTES` ごとに確認する
+2. 1日1回、チャンネル内検索（「セール」「プライムデー」「ブラックフライデー」）で古いセール動画も掘り起こす
+3. 動画ページから概要欄を読み、Amazon リンクを **ASINだけ** にする
+   - `amzlink.to` / `amzn.to` はリダイレクトをたどって ASIN を特定する
+   - 他人のアフィリエイトタグは残さない。出すのは `https://www.amazon.co.jp/dp/<ASIN>` だけ
+4. `MAX_AGE_DAYS`（既定400日）より古い動画は中身を見ずに既読にする
+
+## 除外するもの（`src/classify.js` / `src/amazon.js`）
+
+- ASIN のないリンク（まとめリスト、キャンペーンページ、ストアフロント）
+- 商品名がキャンペーン・サブスク・ギフト券・食品・飲料・サプリ・医薬品・美容・衣類のもの
+- 概要欄の「使用機材」「撮影機材」「BGM」「お仕事依頼」などの節にあるリンク
+
+残した商品は `gadget`（ガジェット）／`appliance`（家電）／`life`（生活用品）／`unknown` に分類します。
+`life` はサブアカウント向けに別の節へ分けます。動画タイトルからセール・まとめ紹介動画かどうかも判定します。
 
 ## 設定
 
-| 環境変数 | 必須 | 内容 |
-|---|---|---|
-| `GITHUB_TOKEN` | ○ | `gadget-feed` だけに Contents: Read and write を付けた fine-grained トークン |
-| `GITHUB_REPO` | | 書き込み先（既定 `shion8120/gadget-feed`） |
-| `YOUTUBE_API_KEY` | | YouTube Data API v3 のキー |
-| `DISCORD_WEBHOOK_URL` | | Discord にも通知したいときの Webhook URL |
-| `POLL_MINUTES` | | 確認間隔（既定 30） |
-| `INITIAL_LOOKBACK_DAYS` | | 初回起動時に拾う範囲（既定 3日）。古い動画は既読扱い |
-| `BOT_DATA_DIR` | | 状態ファイルの置き場所。Render では `/var/data` |
-
-状態は `BOT_DATA_DIR/gadget-watcher-state.json` に保存します（確認済み動画と、ASINごとの紹介履歴）。
+| 環境変数 | 内容 |
+|---|---|
+| `PORT` | Render が自動で入れる。設定されていると HTTP で公開する |
+| `BOT_DATA_DIR` | 状態ファイルの置き場所。Render では `/var/data`（Persistent Disk） |
+| `POLL_MINUTES` | 確認間隔（既定 60） |
+| `MAX_AGE_DAYS` | これより古い動画は商品を拾わない（既定 400） |
+| `YOUTUBE_API_KEY` | 任意。YouTube Data API v3 のキー |
+| `DISCORD_WEBHOOK_URL` | 任意。Discord にも通知したいとき |
 
 ## ローカルで試す
 
 ```powershell
-Copy-Item .env.example .env
 npm run once
 ```
 
-`GITHUB_TOKEN` と `DISCORD_WEBHOOK_URL` を空にしておけば、どこにも書き込まずコンソールに出ます。
-
-## Render
-
-`render.yaml` のとおり Background Worker・Persistent Disk 1GB（`/var/data`）で動かします。
-Render の環境変数に `GITHUB_TOKEN`（と任意で `YOUTUBE_API_KEY`）を入れてください。
-旧Botの `DISCORD_TOKEN` などは使わないので削除して構いません。
+`data/gadget-watcher-state.json` に結果がたまります。`PORT=3000` を付けると `http://localhost:3000/` で見られます。

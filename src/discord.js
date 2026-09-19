@@ -49,7 +49,7 @@ function createNotifier(webhookUrl) {
       await postWebhook(webhookUrl, { embeds: [embed] });
     }
   }
-  return { send };
+  return { send, enabled: Boolean(webhookUrl) };
 }
 
 module.exports = { createNotifier };

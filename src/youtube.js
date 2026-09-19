@@ -1,6 +1,8 @@
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
-const MAX_VIDEOS = 10;
+const MAX_VIDEOS = 15;
+// 動画タブの初期HTMLに入っている分（約30本）を全部使う
+const PAGE_VIDEOS = 30;
 
 async function fetchText(url) {
   const response = await fetch(url, {
@@ -62,7 +64,16 @@ async function listViaRss(channel) {
 async function listViaChannelPage(channel) {
   const html = await fetchText(`https://www.youtube.com/@${channel.handle}/videos`);
   const ids = [...new Set([...html.matchAll(/"videoId":"([A-Za-z0-9_-]{11})"/g)].map((m) => m[1]))];
-  return ids.slice(0, MAX_VIDEOS).map((videoId) => ({ videoId }));
+  return ids.slice(0, PAGE_VIDEOS).map((videoId) => ({ videoId }));
+}
+
+// チャンネル内検索: 動画タブ（新しい約30本）より古いセール動画を拾うのに使う
+async function searchChannel(channel, query) {
+  const html = await fetchText(
+    `https://www.youtube.com/@${channel.handle}/search?query=${encodeURIComponent(query)}`
+  );
+  const ids = [...new Set([...html.matchAll(/"videoId":"([A-Za-z0-9_-]{11})"/g)].map((m) => m[1]))];
+  return ids.map((videoId) => ({ videoId }));
 }
 
 async function listRecentVideos(channel, apiKey) {
@@ -107,4 +118,4 @@ async function completeVideo(video) {
   };
 }
 
-module.exports = { listRecentVideos, completeVideo };
+module.exports = { listRecentVideos, searchChannel, completeVideo };

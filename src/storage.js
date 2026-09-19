@@ -3,15 +3,20 @@ const path = require("path");
 
 function createDefaultState() {
   return {
-    version: 1,
+    version: 2,
     initializedAt: null,
-    // GitHub に最後に書き込んだ内容のハッシュ（変化がなければ書き込まない）
-    publishedHash: null,
-    // videoId -> { channelId, title, publishedAt, checkedAt }
+    lastCheckedAt: null,
+    // channelId -> 最後にチャンネル内検索（セール動画の掘り起こし）をした時刻
+    searchedAt: {},
+    // videoId -> { channelId, title, publishedAt, isSale, productCount, checkedAt }
     videos: {},
-    // ASIN -> { label, mentions: [{ channelId, channelName, videoId, publishedAt }], multiNotifiedAt }
+    // ASIN -> { label, category, mentions: [{ channelId, channelName, videoId, publishedAt, isSale }], multiNotifiedAt }
     products: {}
   };
+}
+
+function objectOr(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
 function normalizeState(state) {
@@ -20,8 +25,9 @@ function normalizeState(state) {
   return {
     ...base,
     ...state,
-    videos: state.videos && typeof state.videos === "object" ? state.videos : {},
-    products: state.products && typeof state.products === "object" ? state.products : {}
+    searchedAt: objectOr(state.searchedAt),
+    videos: objectOr(state.videos),
+    products: objectOr(state.products)
   };
 }
 
