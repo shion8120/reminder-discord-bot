@@ -66,6 +66,7 @@ function cleanLabel(text) {
     // 「(7/12 追記 在庫切れ…)」のような注記は外す
     .replace(/[（(][^()（）]*(追記|在庫|投稿時点|売り切れ|※)[^()（）]*[)）]/g, "")
     .replace(/[（(]※.*$/, "")
+    .replace(/^\s*(第\s*\d+\s*位|No\.?\s*\d+|\d+\s*位)\s*[:：.．)）]?\s*/i, "")
     .replace(/^[\s・▼▶►●■□◆◇★☆※\-–—:：|｜>＞\d０-９.．、①-⑳]+/, "")
     .replace(/[\s:：\-–—|｜→⇒]+$/, "")
     .replace(/\s+/g, " ")
@@ -76,7 +77,8 @@ function cleanLabel(text) {
 // [{ label, asin, url, category }]
 //   url はタグなしの商品ページ。ASINのないリンク（まとめリスト・キャンペーン）と、
 //   関係ない商品（classifyProduct が null）は含めない
-async function extractProducts(description) {
+//   fallbackLabel … 概要欄に商品名がないとき（「〇今回買ったもの → URL」など）に使う。動画タイトルを渡す
+async function extractProducts(description, fallbackLabel = "") {
   const lines = (description || "").split("\n");
   const products = [];
   const seen = new Set();
@@ -92,7 +94,7 @@ async function extractProducts(description) {
       if (HEADER_PATTERN.test(line)) {
         skipSection = EQUIPMENT_SECTION.test(line);
         previousText = "";
-      } else if (line.trim()) {
+      } else if (line.trim() && !STORE_ONLY.test(cleanLabel(line))) {
         previousText = line;
       }
       continue;
@@ -104,6 +106,7 @@ async function extractProducts(description) {
     if (label.length < 4 || STORE_ONLY.test(label)) {
       label = [cleanLabel(previousText), STORE_ONLY.test(label) ? "" : label].filter(Boolean).join(" ");
     }
+    if (!label || STORE_ONLY.test(label)) label = fallbackLabel ? `（動画）${cleanLabel(fallbackLabel)}` : "";
     const category = classifyProduct(label);
     if (!category) continue;
 

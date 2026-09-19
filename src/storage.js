@@ -2,7 +2,7 @@ const fs = require("fs/promises");
 const path = require("path");
 
 // 抽出・分類ルールを変えたら上げる。古い状態は捨てて取り直す
-const STATE_VERSION = 3;
+const STATE_VERSION = 4;
 
 function createDefaultState() {
   return {

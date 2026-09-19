@@ -23,6 +23,7 @@ const GADGET = [
   /Lexar|SanDisk|サンディスク|Samsung|WD\b|Western Digital|Crucial|KIOXIA|キオクシア|Transcend|BUFFALO|バッファロー|IODATA|I-O DATA|アイ・オー・データ|GRAPHT|INNOCN|KEEPTIME|BenQ|LG\b|ASUS|Dell|MSI|Acer|Lenovo|HP\b|EIZO|Hisense|ハイセンス|TCL/i,
   /エルゴトロン|Ergotron|サンワ|SANWA|エレコム|ELECOM|MUXER|Satechi|Twelve South|Domstar|ONED|Majextand|CloudValley|Soonjet|Divoom|SwitchBot|Echo|Fire TV|Fire HD|Kindle(?! ?Unlimited)|Ring\b|Nintendo|Switch 2|PlayStation|PS5|Xbox|Steam Deck|Radeon|GeForce|RTX|Ryzen|Intel|Core i|Pixel|Galaxy|Garmin|Fitbit|Oura|TP-Link|NETGEAR|Aterm|Philips Hue|Tapo/i,
   /EcoFlow|Jackery|BLUETTI|ポータブル電源|AOHI|Blackmagic|SilverStone|Sudokoo|ROG|Noctua|NZXT|Fractal|Cooler Master|be quiet|Thermalright|DeepCool|Seasonic|WD_BLACK|Optane|Philips DLP|Windows 11|Microsoft 365|Office/i,
+  /Sigma|シグマ|TAMRON|タムロン|Canon|キヤノン|Nikon|ニコン|FUJIFILM|富士フイルム|LUMIX|\d+(-\d+)?mm F\d|Fanttik|REDMAGIC|nubia|OnePlus|OPPO|motorola|AQUOS|Xperia|ThinkPad|Surface|OmniBook|Pavilion|ZenBook|Vivobook|Chromebook|Kindle|reMarkable|BOOX|Quest|VR|Meta|XREAL|VITURE|Rokid|FAR EAST GADGET|リーベックス|REVEX|Insta360|Anker|Eufy|Tile/i,
   // 製品ジャンル
   /\d+ ?mAh|\d+ ?W\b|NVMe|PCIe|M\.2|Thunderbolt|HDMI|DisplayPort|\bSN\d{3,4}\b|電源(ユニット)?(?!タップ)|充電|チャージャー|Charger|Power ?Bank|モバイルバッテリー|バッテリー|電源タップ|Power Strip|タップ|USB|Type-?C|Lightning|ケーブル|Cable|ハブ|ドック|Dock|アダプタ|Qi2?|MagSafe|ワイヤレス/i,
   /SSD|HDD|microSD|マイクロSD|SDカード|メモリ|ストレージ|NAS|モニター|ディスプレイ|Monitor|Display|モニターアーム|ScreenBar|モニターライト|デスクライト|キーボード|Keyboard|キースイッチ|マウス|Mouse|トラックボール|ゲーミング|Gaming|ゲームパッド|コントローラー/i,
