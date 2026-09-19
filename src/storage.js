@@ -5,6 +5,8 @@ function createDefaultState() {
   return {
     version: 1,
     initializedAt: null,
+    // GitHub に最後に書き込んだ内容のハッシュ（変化がなければ書き込まない）
+    publishedHash: null,
     // videoId -> { channelId, title, publishedAt, checkedAt }
     videos: {},
     // ASIN -> { label, mentions: [{ channelId, channelName, videoId, publishedAt }], multiNotifiedAt }

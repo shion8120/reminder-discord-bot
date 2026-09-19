@@ -1,7 +1,10 @@
+const crypto = require("crypto");
 const channels = require("../channels.json");
 const { extractProducts } = require("./amazon");
 const { getConfig } = require("./config");
 const { createNotifier } = require("./discord");
+const { buildFeed } = require("./feed");
+const { createPublisher } = require("./github");
 const { createStore } = require("./storage");
 const { listRecentVideos, completeVideo } = require("./youtube");
 
@@ -62,7 +65,24 @@ async function notifyMultiChannel(state, notifier) {
   }
 }
 
-async function checkOnce(config, store, notifier) {
+// 中身（動画・商品）が前回から変わったときだけ GitHub に書き込む
+async function publishFeed(state, publisher) {
+  if (!publisher) return;
+  const hash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify({ videos: state.videos, products: state.products }))
+    .digest("hex");
+  if (hash === state.publishedHash) return;
+
+  const feed = buildFeed(state, channels);
+  const message = `Update YouTuber product pool (${Object.keys(state.videos).length} videos)`;
+  await publisher.putFile("youtuber-pool.md", feed.markdown, message);
+  await publisher.putFile("youtuber-pool.json", feed.json, message);
+  state.publishedHash = hash;
+  console.log(`GitHub に書き込みました: ${publisher.target}`);
+}
+
+async function checkOnce(config, store, notifier, publisher) {
   const state = await store.read();
   const firstRun = !state.initializedAt;
   const cutoff = Date.now() - config.initialLookbackDays * DAY_MS;
@@ -119,19 +139,28 @@ async function checkOnce(config, store, notifier) {
   await notifyMultiChannel(state, notifier);
   state.initializedAt ||= new Date().toISOString();
   await store.write(state);
+
+  try {
+    await publishFeed(state, publisher);
+    await store.write(state);
+  } catch (error) {
+    console.error(error.message);
+  }
 }
 
 async function main() {
   const config = getConfig();
   const store = createStore(config.dataDir);
   const notifier = createNotifier(config.webhookUrl);
+  const publisher = createPublisher(config.github);
 
   if (!config.webhookUrl) console.log("DISCORD_WEBHOOK_URL 未設定のため、通知はコンソールに出します");
+  if (!publisher) console.log("GITHUB_TOKEN 未設定のため、GitHub には書き込みません");
   console.log(`状態ファイル: ${store.stateFile} / 間隔: ${config.pollMinutes}分`);
 
   for (;;) {
     try {
-      await checkOnce(config, store, notifier);
+      await checkOnce(config, store, notifier, publisher);
     } catch (error) {
       console.error(error);
     }

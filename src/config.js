@@ -11,7 +11,13 @@ function numberEnv(name, fallback) {
 
 function getConfig() {
   return {
-    // 未設定なら通知せずコンソールに出す（ローカル確認用）
+    // 収集結果の書き込み先（記事を書く側はここを読む）。トークン未設定なら書き込まない
+    github: {
+      token: process.env.GITHUB_TOKEN?.trim() || null,
+      repo: process.env.GITHUB_REPO?.trim() || "shion8120/gadget-feed",
+      branch: process.env.GITHUB_BRANCH?.trim() || "main"
+    },
+    // 任意。未設定なら通知はコンソールに出す
     webhookUrl: process.env.DISCORD_WEBHOOK_URL?.trim() || null,
     // 任意。あれば YouTube Data API を優先して使う（RSSより安定）
     youtubeApiKey: process.env.YOUTUBE_API_KEY?.trim() || null,
