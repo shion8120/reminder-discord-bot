@@ -14,6 +14,8 @@ const REDIRECT_DELAY_MS = 150;
 const HEADER_PATTERN = /^\s*(【.*】|[▼▽▶►■□◆◇●○〇★☆◎].*|.*[:：]\s*)$/;
 const EQUIPMENT_SECTION = /使用機材|撮影機材|機材一覧|撮影環境|編集環境|愛用品|愛用している|普段使って|お気に入り(の|な)?(ガジェット|機材|PC周辺)|デスク(環境|ツアー)の商品|BGM|音楽|効果音|素材|お仕事|依頼|メンバーシップ|グッズ|スタンプ|SNS|Twitter|Instagram|TikTok/i;
 
+const STORE_ONLY = /^(Amazon|アマゾン|amazon\.co\.jp|楽天|楽天市場|Yahoo!?|ヤフー|公式|公式ストア|購入|購入はこちら|こちら|リンク|商品ページ)$/i;
+
 const resolved = new Map();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -87,15 +89,21 @@ async function extractProducts(description) {
     ANY_URL.lastIndex = 0;
 
     if (!hasAnyUrl) {
-      if (HEADER_PATTERN.test(line)) skipSection = EQUIPMENT_SECTION.test(line);
-      if (line.trim()) previousText = line;
+      if (HEADER_PATTERN.test(line)) {
+        skipSection = EQUIPMENT_SECTION.test(line);
+        previousText = "";
+      } else if (line.trim()) {
+        previousText = line;
+      }
       continue;
     }
     if (skipSection || !links.length) continue;
 
-    // 「白→ URL」のような短いラベルは、直前の商品名とつなげる
+    // 「白→ URL」「Amazon: URL」のような短い・店名だけのラベルは、直前の商品名とつなげる
     let label = cleanLabel(line);
-    if (label.length < 4) label = [cleanLabel(previousText), label].filter(Boolean).join(" ");
+    if (label.length < 4 || STORE_ONLY.test(label)) {
+      label = [cleanLabel(previousText), STORE_ONLY.test(label) ? "" : label].filter(Boolean).join(" ");
+    }
     const category = classifyProduct(label);
     if (!category) continue;
 

@@ -1,9 +1,12 @@
 const fs = require("fs/promises");
 const path = require("path");
 
+// 抽出・分類ルールを変えたら上げる。古い状態は捨てて取り直す
+const STATE_VERSION = 3;
+
 function createDefaultState() {
   return {
-    version: 2,
+    version: STATE_VERSION,
     initializedAt: null,
     lastCheckedAt: null,
     // channelId -> 最後にチャンネル内検索（セール動画の掘り起こし）をした時刻
@@ -21,7 +24,7 @@ function objectOr(value) {
 
 function normalizeState(state) {
   const base = createDefaultState();
-  if (!state || typeof state !== "object") return base;
+  if (!state || typeof state !== "object" || (state.version || 1) < STATE_VERSION) return base;
   return {
     ...base,
     ...state,

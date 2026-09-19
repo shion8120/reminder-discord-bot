@@ -102,7 +102,8 @@ async function detailsFromWatchPage(videoId) {
   return {
     title: title ? decodeJsonString(title) : "",
     description: decodeJsonString(description),
-    publishedAt: html.match(/"publishDate":"([^"]+)"/)?.[1] || null
+    publishedAt: html.match(/"publishDate":"([^"]+)"/)?.[1] || null,
+    channelId: html.match(/"channelId":"(UC[A-Za-z0-9_-]{22})"/)?.[1] || null
   };
 }
 
@@ -137,7 +138,8 @@ async function detailsFromNext(videoId) {
   return {
     title: (primary?.title?.runs || []).map((run) => run.text).join(""),
     description,
-    publishedAt: date ? `${date[1]}-${date[2].padStart(2, "0")}-${date[3].padStart(2, "0")}T00:00:00+09:00` : null
+    publishedAt: date ? `${date[1]}-${date[2].padStart(2, "0")}-${date[3].padStart(2, "0")}T00:00:00+09:00` : null,
+    channelId: secondary?.owner?.videoOwnerRenderer?.navigationEndpoint?.browseEndpoint?.browseId || null
   };
 }
 
@@ -146,7 +148,12 @@ async function detailsFromPlayer(videoId) {
   const data = await postInnertube("player", { clientName: "ANDROID", clientVersion: "20.10.38" }, videoId);
   const details = data.videoDetails;
   if (details?.shortDescription === undefined) throw new Error(`player: ${data.playabilityStatus?.status || "概要欄なし"}`);
-  return { title: details.title || "", description: details.shortDescription, publishedAt: null };
+  return {
+    title: details.title || "",
+    description: details.shortDescription,
+    publishedAt: null,
+    channelId: details.channelId || null
+  };
 }
 
 async function fetchVideoDetails(videoId) {
@@ -169,7 +176,9 @@ async function completeVideo(video) {
     ...video,
     title: video.title || details.title,
     description: video.description ?? details.description,
-    publishedAt: video.publishedAt || details.publishedAt
+    publishedAt: video.publishedAt || details.publishedAt,
+    // 検索結果には他チャンネルの動画も混ざるので、投稿者は動画側の情報を正とする
+    channelId: details.channelId || video.channelId || null
   };
 }
 

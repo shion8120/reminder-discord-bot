@@ -103,18 +103,38 @@ async function candidateVideos(state, channel, config) {
   return { source: listing.source, fresh };
 }
 
-async function processChannel(state, channel, config, notifier) {
-  const { source, fresh } = await candidateVideos(state, channel, config);
+const channelById = new Map(channels.map((channel) => [channel.channelId, channel]));
+
+async function processChannel(state, listedChannel, config, notifier) {
+  const { source, fresh } = await candidateVideos(state, listedChannel, config);
   const cutoff = Date.now() - config.maxAgeDays * DAY_MS;
   let added = 0;
+  let failed = 0;
 
   for (const listed of fresh.reverse()) {
+    if (state.videos[listed.videoId]) continue;
     let video;
     try {
       await sleep(VIDEO_DELAY_MS);
       video = await completeVideo(listed);
     } catch (error) {
-      console.warn(`${channel.name}: ${error.message}`);
+      failed += 1;
+      if (failed <= 3) console.warn(`${listedChannel.name}: ${error.message}`);
+      continue;
+    }
+
+    // 検索結果に混ざった他チャンネルの動画は、本当の投稿者に付ける。対象外のチャンネルなら既読にするだけ
+    const channel = channelById.get(video.channelId || listedChannel.channelId);
+    if (!channel) {
+      state.videos[video.videoId] = {
+        channelId: video.channelId,
+        title: video.title,
+        publishedAt: video.publishedAt,
+        isSale: false,
+        productCount: 0,
+        foreign: true,
+        checkedAt: new Date().toISOString()
+      };
       continue;
     }
 
@@ -152,7 +172,7 @@ async function processChannel(state, channel, config, notifier) {
     state.videos[video.videoId] = record;
   }
 
-  console.log(`${channel.name}: 新規 ${fresh.length}本 / 商品 ${added}件 (${source})`);
+  console.log(`${listedChannel.name}: 候補 ${fresh.length}本 / 読めず ${failed}本 / 商品 ${added}件 (${source})`);
 }
 
 async function checkOnce(config, store, notifier, onUpdate) {
