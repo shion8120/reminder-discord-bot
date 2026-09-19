@@ -128,7 +128,8 @@ async function processChannel(state, channel, config, notifier) {
     };
 
     // 古すぎる動画は中身を見ずに既読にする（価格も在庫も変わっていて使えない）
-    if (video.publishedAt && Date.parse(video.publishedAt) >= cutoff) {
+    // 日付が取れなかった動画（/player で読んだもの）は新しいものとして扱う
+    if (!video.publishedAt || Date.parse(video.publishedAt) >= cutoff) {
       const products = await extractProducts(video.description);
       record.productCount = products.length;
       recordProducts(state, channel, { ...video, isSale: record.isSale }, products);

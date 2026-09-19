@@ -94,16 +94,71 @@ async function listRecentVideos(channel, apiKey) {
   throw new Error(`${channel.name} の動画一覧を取得できません (${errors.join(" / ")})`);
 }
 
-async function fetchVideoDetails(videoId) {
+async function detailsFromWatchPage(videoId) {
   const html = await fetchText(`https://www.youtube.com/watch?v=${videoId}`);
   const description = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
   const title = html.match(/"title":"((?:[^"\\]|\\.)*)","lengthSeconds"/)?.[1];
-  if (description === undefined) throw new Error(`概要欄を読めません: ${videoId}`);
+  if (description === undefined) throw new Error("watch: 概要欄なし（ロボット確認ページの可能性）");
   return {
     title: title ? decodeJsonString(title) : "",
     description: decodeJsonString(description),
     publishedAt: html.match(/"publishDate":"([^"]+)"/)?.[1] || null
   };
+}
+
+async function postInnertube(endpoint, client, videoId) {
+  const response = await fetch(`https://www.youtube.com/youtubei/v1/${endpoint}?prettyPrint=false`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "User-Agent": USER_AGENT },
+    body: JSON.stringify({ context: { client: { ...client, hl: "ja", gl: "JP" } }, videoId })
+  });
+  if (!response.ok) throw new Error(`${endpoint}: HTTP ${response.status}`);
+  return response.json();
+}
+
+function findDeep(node, predicate) {
+  if (!node || typeof node !== "object") return null;
+  if (predicate(node)) return node;
+  for (const value of Object.values(node)) {
+    const found = findDeep(value, predicate);
+    if (found) return found;
+  }
+  return null;
+}
+
+// /next（WEB）: 動画ページの右側・下側の情報。watch ページが弾かれても通ることが多い
+async function detailsFromNext(videoId) {
+  const data = await postInnertube("next", { clientName: "WEB", clientVersion: "2.20260915.01.00" }, videoId);
+  const primary = findDeep(data, (node) => node.videoPrimaryInfoRenderer)?.videoPrimaryInfoRenderer;
+  const secondary = findDeep(data, (node) => node.videoSecondaryInfoRenderer)?.videoSecondaryInfoRenderer;
+  const description = secondary?.attributedDescription?.content;
+  if (description === undefined) throw new Error("next: 概要欄なし");
+  const date = primary?.dateText?.simpleText?.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  return {
+    title: (primary?.title?.runs || []).map((run) => run.text).join(""),
+    description,
+    publishedAt: date ? `${date[1]}-${date[2].padStart(2, "0")}-${date[3].padStart(2, "0")}T00:00:00+09:00` : null
+  };
+}
+
+// /player（ANDROID）: 最後の手段
+async function detailsFromPlayer(videoId) {
+  const data = await postInnertube("player", { clientName: "ANDROID", clientVersion: "20.10.38" }, videoId);
+  const details = data.videoDetails;
+  if (details?.shortDescription === undefined) throw new Error(`player: ${data.playabilityStatus?.status || "概要欄なし"}`);
+  return { title: details.title || "", description: details.shortDescription, publishedAt: null };
+}
+
+async function fetchVideoDetails(videoId) {
+  const errors = [];
+  for (const load of [detailsFromWatchPage, detailsFromNext, detailsFromPlayer]) {
+    try {
+      return await load(videoId);
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  throw new Error(`概要欄を読めません: ${videoId} (${errors.join(" / ")})`);
 }
 
 // API で取れなかった項目（概要欄・日付）を動画ページで補う
