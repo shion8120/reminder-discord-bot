@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: starter
     buildCommand: npm ci
-    startCommand: npm run render-start
+    startCommand: npm start
     disk:
       name: bot-data
       mountPath: /var/data
@@ -14,13 +14,9 @@ services:
         value: 24.16.0
       - key: BOT_DATA_DIR
         value: /var/data
-      - key: DISCORD_TOKEN
+      - key: DISCORD_WEBHOOK_URL
         sync: false
-      - key: DISCORD_CLIENT_ID
+      - key: YOUTUBE_API_KEY
         sync: false
-      - key: DISCORD_GUILD_ID
-        sync: false
-      - key: REMINDER_CHANNEL_ID
-        sync: false
-      - key: BOT_TIMEZONE
-        value: Asia/Tokyo
+      - key: POLL_MINUTES
+        value: "30"

@@ -1,103 +1,46 @@
-# Reminder Discord Bot
+# Gadget Watcher
 
-授業チャンネルごとのロール付与と、課題・テストのリマインドを行うDiscord Botです。RenderのBackground Workerで動かす前提の設定を含んでいます。
+ガジェット系YouTuberの新着動画を監視し、概要欄で紹介されたAmazon商品をDiscordに通知するワーカーです。
+RenderのBackground Workerで動かします（サービス名は旧Botの `reminder-discord-bot` のまま流用）。
 
-## 主な機能
+旧「授業リマインドBot」のコードは `archive/reminder-bot` ブランチに残っています。
 
-- `/classes sync`: 授業名のテキストチャンネルと同名のロールを作成
-- `/classes panel`: リアクションで授業ロールを付与・解除
-- `/reminder create`: 課題またはテストの期限、範囲、通知タイミングを登録
-- 指定時刻に授業ロール宛てでリマインドを送信
-- リマインド投稿に `✅ 終わった / 🔄 やってる / 🕒 まだやってない` のリアクションを追加
+## やること
 
-## ローカル準備
+- `channels.json` のチャンネルを `POLL_MINUTES` ごとに確認する
+- 新着動画の概要欄から Amazon リンクを拾い、**ASINだけ**を取り出す
+  - `amzlink.to` / `amzn.to` はリダイレクトをたどって ASIN を特定する
+  - 他人のアフィリエイトタグは残さない。通知するのは `https://www.amazon.co.jp/dp/<ASIN>` だけ
+  - まとめリスト（`/shop/.../list/...`）など ASIN のないリンクは捨てる
+- 動画ごとに「🎬 チャンネル：タイトル」と商品一覧を通知する
+- **2チャンネル以上が別々に紹介した商品**は「⭐ 複数チャンネル紹介」として1回だけ通知する
+
+動画一覧の取り方は、`YOUTUBE_API_KEY` があれば Data API → RSS → チャンネルの動画タブ の順に試します。
+RSS は 404 が頻発するため、キーを入れておくのがおすすめです（1回の確認で5ユニット程度。無料枠は1日1万）。
+
+## 設定
+
+| 環境変数 | 必須 | 内容 |
+|---|---|---|
+| `DISCORD_WEBHOOK_URL` | ○ | 通知先チャンネルの Webhook URL。未設定ならコンソールに出す |
+| `YOUTUBE_API_KEY` | | YouTube Data API v3 のキー |
+| `POLL_MINUTES` | | 確認間隔（既定 30） |
+| `INITIAL_LOOKBACK_DAYS` | | 初回起動時に通知する範囲（既定 3日）。古い動画は既読扱い |
+| `BOT_DATA_DIR` | | 状態ファイルの置き場所。Render では `/var/data` |
+
+状態は `BOT_DATA_DIR/gadget-watcher-state.json` に保存します（確認済み動画と、ASINごとの紹介履歴）。
+
+## ローカルで試す
 
 ```powershell
-npm install
 Copy-Item .env.example .env
+npm run once
 ```
 
-`.env` にDiscord Botの情報を入れます。
-
-```env
-DISCORD_TOKEN=your-bot-token
-DISCORD_CLIENT_ID=your-application-client-id
-DISCORD_GUILD_ID=your-server-guild-id
-REMINDER_CHANNEL_ID=
-BOT_TIMEZONE=Asia/Tokyo
-BOT_DATA_DIR=
-```
-
-スラッシュコマンド登録:
-
-```powershell
-npm run deploy
-```
-
-起動:
-
-```powershell
-npm start
-```
+`DISCORD_WEBHOOK_URL` を空にしておけば、Discord には送らずコンソールに出ます。
 
 ## Render
 
-このBotはWeb Serviceではなく、Background Workerとして動かします。`render.yaml` を置いているので、RenderのBlueprintから作成できます。
-
-設定:
-
-- Service type: `Background Worker`
-- Build Command: `npm ci`
-- Start Command: `npm run render-start`
-- Node version: `24.16.0`
-- Persistent Disk: `1GB`
-- Disk mount path: `/var/data`
-
-Renderの環境変数:
-
-```env
-DISCORD_TOKEN=your-bot-token
-DISCORD_CLIENT_ID=your-application-client-id
-DISCORD_GUILD_ID=your-server-guild-id
-REMINDER_CHANNEL_ID=
-BOT_TIMEZONE=Asia/Tokyo
-BOT_DATA_DIR=/var/data
-```
-
-`npm run render-start` は、起動時にスラッシュコマンドを登録してからBot本体を開始します。
-
-## Discord側の設定
-
-Discord Developer PortalでBotを作成し、`SERVER MEMBERS INTENT` を有効にしてください。
-
-Botに必要な権限:
-
-- Manage Roles
-- Send Messages
-- Embed Links
-- Add Reactions
-- Read Message History
-- Use Slash Commands
-
-Botのロールは、Botが付け外しする授業ロールより上に置く必要があります。
-
-## 使い方
-
-1. 授業名のテキストチャンネルを作る
-2. `/classes sync` を実行してロールを作る
-3. `/classes panel` を実行してリアクションロール案内を投稿する
-4. `/reminder create` で課題・テストのリマインドを登録する
-
-通知タイミングのカスタム入力例:
-
-```text
-2w,3d,12h,0
-```
-
-- `w`: 週
-- `d`: 日
-- `h`: 時間
-- `m`: 分
-- `0`: 期限時刻
-
-保存データは通常 `data/bot-state.json`、Renderでは `/var/data/bot-state.json` に保存されます。
+`render.yaml` のとおり Background Worker・Persistent Disk 1GB（`/var/data`）で動かします。
+Render の環境変数に `DISCORD_WEBHOOK_URL`（と任意で `YOUTUBE_API_KEY`）を入れてください。
+旧Botの `DISCORD_TOKEN` などは使わないので削除して構いません。

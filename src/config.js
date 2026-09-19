@@ -1,21 +1,27 @@
+const fs = require("fs");
 const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-function requireEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} is required. Copy .env.example to .env and fill it in.`);
-  }
-  return value;
+const envFile = path.join(__dirname, "..", ".env");
+if (fs.existsSync(envFile)) process.loadEnvFile(envFile);
+
+function numberEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function getConfig() {
   return {
-    token: requireEnv("DISCORD_TOKEN"),
-    clientId: requireEnv("DISCORD_CLIENT_ID"),
-    guildId: requireEnv("DISCORD_GUILD_ID"),
-    defaultReminderChannelId: process.env.REMINDER_CHANNEL_ID?.trim() || null,
-    timezone: process.env.BOT_TIMEZONE?.trim() || "Asia/Tokyo"
+    // 未設定なら通知せずコンソールに出す（ローカル確認用）
+    webhookUrl: process.env.DISCORD_WEBHOOK_URL?.trim() || null,
+    // 任意。あれば YouTube Data API を優先して使う（RSSより安定）
+    youtubeApiKey: process.env.YOUTUBE_API_KEY?.trim() || null,
+    dataDir: process.env.BOT_DATA_DIR?.trim()
+      ? path.resolve(process.env.BOT_DATA_DIR.trim())
+      : path.join(__dirname, "..", "data"),
+    pollMinutes: numberEnv("POLL_MINUTES", 30),
+    // 初回起動時に遡る日数。これより古い動画は「既読」扱いにして通知しない
+    initialLookbackDays: numberEnv("INITIAL_LOOKBACK_DAYS", 3),
+    runOnce: process.argv.includes("--once")
   };
 }
 

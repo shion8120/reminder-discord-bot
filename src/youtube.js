@@ -1,0 +1,110 @@
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
+const MAX_VIDEOS = 10;
+
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT, "Accept-Language": "ja,en;q=0.8" }
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+  return response.text();
+}
+
+function decodeJsonString(raw) {
+  return JSON.parse(`"${raw}"`);
+}
+
+function decodeXml(text) {
+  return text
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+// 1. YouTube Data API（キーがあるとき）: アップロード再生リストを1回読むだけで概要欄まで取れる
+async function listViaApi(channel, apiKey) {
+  const playlistId = `UU${channel.channelId.slice(2)}`;
+  const url =
+    "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet" +
+    `&maxResults=${MAX_VIDEOS}&playlistId=${playlistId}&key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`YouTube API HTTP ${response.status}`);
+  const data = await response.json();
+  return (data.items || []).map((item) => ({
+    videoId: item.snippet.resourceId.videoId,
+    title: item.snippet.title,
+    publishedAt: item.snippet.publishedAt,
+    description: item.snippet.description
+  }));
+}
+
+// 2. RSS: 404/500 がよく出るので失敗前提
+async function listViaRss(channel) {
+  const xml = await fetchText(
+    `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.channelId}`
+  );
+  // <title> はチャンネル名も拾って1件ずれるので、entry ごとに切ってから読む
+  return xml
+    .split("<entry>")
+    .slice(1)
+    .slice(0, MAX_VIDEOS)
+    .map((entry) => ({
+      videoId: entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1],
+      title: decodeXml(entry.match(/<media:title>([^<]*)<\/media:title>/)?.[1] || ""),
+      publishedAt: entry.match(/<published>([^<]+)<\/published>/)?.[1] || null
+    }))
+    .filter((video) => video.videoId);
+}
+
+// 3. チャンネルの動画タブ: 新しい順に videoId が並ぶ（日付は取れない）
+async function listViaChannelPage(channel) {
+  const html = await fetchText(`https://www.youtube.com/@${channel.handle}/videos`);
+  const ids = [...new Set([...html.matchAll(/"videoId":"([A-Za-z0-9_-]{11})"/g)].map((m) => m[1]))];
+  return ids.slice(0, MAX_VIDEOS).map((videoId) => ({ videoId }));
+}
+
+async function listRecentVideos(channel, apiKey) {
+  const sources = [];
+  if (apiKey) sources.push(["api", () => listViaApi(channel, apiKey)]);
+  sources.push(["rss", () => listViaRss(channel)], ["page", () => listViaChannelPage(channel)]);
+
+  const errors = [];
+  for (const [name, load] of sources) {
+    try {
+      const videos = await load();
+      if (videos.length) return { source: name, videos };
+      errors.push(`${name}: empty`);
+    } catch (error) {
+      errors.push(`${name}: ${error.message}`);
+    }
+  }
+  throw new Error(`${channel.name} の動画一覧を取得できません (${errors.join(" / ")})`);
+}
+
+async function fetchVideoDetails(videoId) {
+  const html = await fetchText(`https://www.youtube.com/watch?v=${videoId}`);
+  const description = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
+  const title = html.match(/"title":"((?:[^"\\]|\\.)*)","lengthSeconds"/)?.[1];
+  if (description === undefined) throw new Error(`概要欄を読めません: ${videoId}`);
+  return {
+    title: title ? decodeJsonString(title) : "",
+    description: decodeJsonString(description),
+    publishedAt: html.match(/"publishDate":"([^"]+)"/)?.[1] || null
+  };
+}
+
+// API で取れなかった項目（概要欄・日付）を動画ページで補う
+async function completeVideo(video) {
+  if (video.description !== undefined && video.publishedAt) return video;
+  const details = await fetchVideoDetails(video.videoId);
+  return {
+    ...video,
+    title: video.title || details.title,
+    description: video.description ?? details.description,
+    publishedAt: video.publishedAt || details.publishedAt
+  };
+}
+
+module.exports = { listRecentVideos, completeVideo };
