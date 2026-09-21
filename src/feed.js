@@ -137,7 +137,8 @@ function buildFeed(state, channels) {
   if (!deals.length) lines.push("（なし）");
   for (const [asin, deal] of deals) {
     const price = deal.price ? ` — ${deal.price.toLocaleString("ja-JP")}円` : "";
-    lines.push(`- ${deal.title || asin}${price} https://www.amazon.co.jp/dp/${asin}`);
+    const label = deal.category === "appliance" ? "［家電］" : "";
+    lines.push(`- ${label}${deal.title || asin}${price} https://www.amazon.co.jp/dp/${asin}`);
   }
 
   lines.push("", `## 📚 過去のセール動画（${SALE_VIDEO_DAYS}日より前。商品は JSON を参照）`, "");

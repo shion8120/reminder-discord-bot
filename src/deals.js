@@ -35,10 +35,17 @@ function parseProduct(html) {
   const title =
     html.match(/<span[^>]+id="productTitle"[^>]*>([^<]+)</)?.[1]?.trim() ||
     html.match(/"title"\s*:\s*"([^"]{5,120})"/)?.[1];
-  const price =
-    Number(html.match(/"priceAmount"\s*:\s*([\d.]+)/)?.[1]) ||
-    Number(html.match(/class="a-offscreen">[￥¥]([\d,]+)/)?.[1]?.replace(/,/g, ""));
-  return { title: title || "", price: Number.isFinite(price) && price > 0 ? Math.round(price) : null };
+  // ポイント数や分割払いの金額を拾わないよう、価格表示のブロックの中だけを見る
+  const coreBlock =
+    html.match(/id="corePriceDisplay[\s\S]{0,4000}/)?.[0] ||
+    html.match(/id="corePrice_feature_div[\s\S]{0,4000}/)?.[0] ||
+    "";
+  const candidates = [
+    ...[...coreBlock.matchAll(/class="a-offscreen">[￥¥]([\d,]+)/g)].map((m) => Number(m[1].replace(/,/g, ""))),
+    ...[...coreBlock.matchAll(/"priceAmount"\s*:\s*([\d.]+)/g)].map((m) => Number(m[1]))
+  ].filter((value) => Number.isFinite(value) && value >= 100);
+
+  return { title: title || "", price: candidates.length ? Math.round(candidates[0]) : null };
 }
 
 // セール一覧から ASIN を拾う
@@ -131,6 +138,13 @@ function shouldRun(state, hours, now = new Date()) {
 }
 
 async function maybeCheckDeals(state, config) {
+  // 価格の読み方を直したので、古い収集結果は一度捨てる
+  if (state.dealsSchema !== 2) {
+    state.deals = {};
+    state.dealsRunKey = null;
+    state.dealsSchema = 2;
+  }
+
   const key = shouldRun(state, config.dealHours);
   if (!key) return;
 
