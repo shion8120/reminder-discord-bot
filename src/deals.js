@@ -52,15 +52,9 @@ function parseProduct(html) {
 
   const fromJson = Number(html.match(/"displayPrice"\s*:\s*"[￥¥]([\d,]+)"/)?.[1]?.replace(/,/g, ""));
 
-  // 最後の手段：ページ全体でいちばん多く出てくる金額を採る（端数の小物価格を拾わないため）
-  const counts = new Map();
-  for (const match of html.matchAll(/class="a-offscreen">[￥¥]([\d,]+)/g)) {
-    const value = Number(match[1].replace(/,/g, ""));
-    if (Number.isFinite(value) && value >= 500) counts.set(value, (counts.get(value) || 0) + 1);
-  }
-  const mostCommon = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0];
-
-  const price = fromBlock[0] || (Number.isFinite(fromJson) && fromJson >= 100 ? fromJson : null) || mostCommon || null;
+  // 確実な2か所からしか取らない。取れないときは空欄のままにする
+  //（ページ全体から推測すると、関連商品やセット品の価格を拾って誤りになる）
+  const price = fromBlock[0] || (Number.isFinite(fromJson) && fromJson >= 100 ? fromJson : null) || null;
   return { title: title || "", price: price ? Math.round(price) : null };
 }
 
@@ -155,10 +149,10 @@ function shouldRun(state, hours, now = new Date()) {
 
 async function maybeCheckDeals(state, config) {
   // 価格の読み方を直したので、古い収集結果は一度捨てる
-  if (state.dealsSchema !== 4) {
+  if (state.dealsSchema !== 5) {
     state.deals = {};
     state.dealsRunKey = null;
-    state.dealsSchema = 4;
+    state.dealsSchema = 5;
   }
 
   const key = shouldRun(state, config.dealHours);

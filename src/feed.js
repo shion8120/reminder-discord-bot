@@ -136,7 +136,7 @@ function buildFeed(state, channels) {
   lines.push("", "## 🏷 Amazonセール候補（自動収集・直近7日）", "");
   if (!deals.length) lines.push("（なし）");
   for (const [asin, deal] of deals) {
-    const price = deal.price ? ` — ${deal.price.toLocaleString("ja-JP")}円` : "";
+    const price = deal.price ? ` — ${deal.price.toLocaleString("ja-JP")}円（要確認）` : "（価格は要確認）";
     const label = deal.category === "appliance" ? "［家電］" : "";
     lines.push(`- ${label}${deal.title || asin}${price} https://www.amazon.co.jp/dp/${asin}`);
   }
