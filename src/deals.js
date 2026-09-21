@@ -118,8 +118,8 @@ async function collectDeals(state) {
 
     const { title, price } = parseProduct(html);
     const category = classifyProduct(title);
-    // ガジェットと家電だけ残す（食品・衣類などは捨てる）
-    if (!category || !["gadget", "appliance"].includes(category)) continue;
+    // セール候補はガジェットだけにする（炊飯器などの生活家電は記事の対象外）
+    if (category !== "gadget") continue;
 
     state.deals ||= {};
     state.deals[asin] = { title, price, category, seenAt: new Date().toISOString(), source: "amazon-deals" };
@@ -139,10 +139,10 @@ function shouldRun(state, hours, now = new Date()) {
 
 async function maybeCheckDeals(state, config) {
   // 価格の読み方を直したので、古い収集結果は一度捨てる
-  if (state.dealsSchema !== 2) {
+  if (state.dealsSchema !== 3) {
     state.deals = {};
     state.dealsRunKey = null;
-    state.dealsSchema = 2;
+    state.dealsSchema = 3;
   }
 
   const key = shouldRun(state, config.dealHours);
