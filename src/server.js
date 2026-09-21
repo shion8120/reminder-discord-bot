@@ -20,7 +20,12 @@ function startServer(port, getFeed) {
       return;
     }
     const [type, render] = route;
-    response.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+    response.writeHead(200, {
+      "Content-Type": type,
+      "Cache-Control": "public, max-age=600",
+      // サイト側（gadgetlucid.com）から直接読めるようにする
+      "Access-Control-Allow-Origin": "*"
+    });
     response.end(request.method === "HEAD" ? undefined : render(getFeed()));
   });
 
