@@ -6,7 +6,8 @@ const PAGE_VIDEOS = 30;
 
 async function fetchText(url) {
   const response = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, "Accept-Language": "ja,en;q=0.8" }
+    headers: { "User-Agent": USER_AGENT, "Accept-Language": "ja,en;q=0.8" },
+    signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
   return response.text();
@@ -111,6 +112,7 @@ async function postInnertube(endpoint, client, videoId) {
   const response = await fetch(`https://www.youtube.com/youtubei/v1/${endpoint}?prettyPrint=false`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(20000),
     body: JSON.stringify({ context: { client: { ...client, hl: "ja", gl: "JP" } }, videoId })
   });
   if (!response.ok) throw new Error(`${endpoint}: HTTP ${response.status}`);

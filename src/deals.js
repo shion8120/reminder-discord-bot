@@ -6,7 +6,10 @@ const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
 const DEAL_PAGES = [
   "https://www.amazon.co.jp/gp/goldbox",
-  "https://www.amazon.co.jp/deals"
+  "https://www.amazon.co.jp/deals",
+  // ガジェット寄りの候補を増やすための急上昇ランキング
+  "https://www.amazon.co.jp/gp/movers-and-shakers/computers/",
+  "https://www.amazon.co.jp/gp/movers-and-shakers/electronics/"
 ];
 const MAX_DEALS = 25;
 const FETCH_DELAY_MS = 2500;
@@ -24,7 +27,9 @@ function looksBlocked(html) {
 
 async function fetchPage(url) {
   const response = await fetch(url, {
-    headers: { "User-Agent": UA, "Accept-Language": "ja,en;q=0.8", Accept: "text/html" }
+    headers: { "User-Agent": UA, "Accept-Language": "ja,en;q=0.8", Accept: "text/html" },
+    // 応答が返らないと処理全体が止まるので、必ず時間で打ち切る
+    signal: AbortSignal.timeout(20000)
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
