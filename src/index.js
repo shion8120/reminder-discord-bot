@@ -7,6 +7,7 @@ const { buildFeed } = require("./feed");
 const { startServer } = require("./server");
 const { createStore } = require("./storage");
 const { listRecentVideos, searchChannel, completeVideo } = require("./youtube");
+const { maybeCheckDeals } = require("./deals");
 
 const COLOR_VIDEO = 0x3b82f6;
 const COLOR_MULTI = 0xf59e0b;
@@ -186,6 +187,12 @@ async function checkOnce(config, store, notifier, onUpdate) {
     }
     await store.write(state);
     onUpdate(state);
+  }
+
+  try {
+    await maybeCheckDeals(state, config);
+  } catch (error) {
+    console.warn(`セール確認: ${error.message}`);
   }
 
   await notifyMultiChannel(state, notifier);

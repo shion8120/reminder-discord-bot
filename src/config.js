@@ -23,6 +23,8 @@ function getConfig() {
     pollMinutes: numberEnv("POLL_MINUTES", 60),
     // これより古い動画は商品を拾わない（価格も在庫も変わっていて使えない）
     maxAgeDays: numberEnv("MAX_AGE_DAYS", 400),
+    // Amazonのセールを見に行くJSTの時刻（既定 8時と20時）
+    dealHours: (process.env.DEAL_HOURS || "8,20").split(",").map((h) => Number(h.trim())).filter((h) => Number.isInteger(h)).sort((a, b) => a - b),
     runOnce: process.argv.includes("--once")
   };
 }

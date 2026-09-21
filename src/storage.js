@@ -2,13 +2,17 @@ const fs = require("fs/promises");
 const path = require("path");
 
 // 抽出・分類ルールを変えたら上げる。古い状態は捨てて取り直す
-const STATE_VERSION = 4;
+const STATE_VERSION = 5;
 
 function createDefaultState() {
   return {
     version: STATE_VERSION,
     initializedAt: null,
     lastCheckedAt: null,
+    dealsRunKey: null,
+    dealsCheckedAt: null,
+    // ASIN -> { title, price, category, seenAt, source }（Amazonのセール一覧から拾ったもの）
+    deals: {},
     // channelId -> 最後にチャンネル内検索（セール動画の掘り起こし）をした時刻
     searchedAt: {},
     // videoId -> { channelId, title, publishedAt, isSale, productCount, checkedAt }
@@ -29,6 +33,7 @@ function normalizeState(state) {
     ...base,
     ...state,
     searchedAt: objectOr(state.searchedAt),
+    deals: objectOr(state.deals),
     videos: objectOr(state.videos),
     products: objectOr(state.products)
   };

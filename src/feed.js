@@ -128,6 +128,17 @@ function buildFeed(state, channels) {
   if (!life.length) lines.push("（なし）");
   for (const item of life) lines.push(`${productLine(item)}（${cell(item.channels.join("・"))}）`);
 
+  // Amazonのセール一覧から拾った候補（1日2回の自動確認）
+  const deals = Object.entries(state.deals || {})
+    .filter(([, deal]) => now - Date.parse(deal.seenAt || 0) < 7 * DAY_MS)
+    .sort((a, b) => String(b[1].seenAt).localeCompare(String(a[1].seenAt)));
+  lines.push("", "## 🏷 Amazonセール候補（自動収集・直近7日）", "");
+  if (!deals.length) lines.push("（なし）");
+  for (const [asin, deal] of deals) {
+    const price = deal.price ? ` — ${deal.price.toLocaleString("ja-JP")}円` : "";
+    lines.push(`- ${deal.title || asin}${price} https://www.amazon.co.jp/dp/${asin}`);
+  }
+
   lines.push("", `## 📚 過去のセール動画（${SALE_VIDEO_DAYS}日より前。商品は JSON を参照）`, "");
   const pastSales = videos.filter((video) => video.isSale && ageMs(video.publishedAt) >= SALE_VIDEO_DAYS * DAY_MS);
   if (!pastSales.length) lines.push("（なし）");
