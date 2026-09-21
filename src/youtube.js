@@ -144,8 +144,8 @@ async function detailsFromNext(videoId) {
 }
 
 // /player（ANDROID）: 最後の手段
-async function detailsFromPlayer(videoId) {
-  const data = await postInnertube("player", { clientName: "ANDROID", clientVersion: "20.10.38" }, videoId);
+async function detailsFromPlayerAs(videoId, client) {
+  const data = await postInnertube("player", client, videoId);
   const details = data.videoDetails;
   if (details?.shortDescription === undefined) throw new Error(`player: ${data.playabilityStatus?.status || "概要欄なし"}`);
   return {
@@ -158,7 +158,15 @@ async function detailsFromPlayer(videoId) {
 
 async function fetchVideoDetails(videoId) {
   const errors = [];
-  for (const load of [detailsFromWatchPage, detailsFromNext, detailsFromPlayer]) {
+  const loaders = [
+    detailsFromWatchPage,
+    detailsFromNext,
+    (id) => detailsFromPlayerAs(id, { clientName: "ANDROID", clientVersion: "20.10.38" }),
+    (id) => detailsFromPlayerAs(id, { clientName: "IOS", clientVersion: "20.10.4", deviceModel: "iPhone16,2" }),
+    (id) => detailsFromPlayerAs(id, { clientName: "MWEB", clientVersion: "2.20260915.01.00" }),
+    (id) => detailsFromPlayerAs(id, { clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", clientVersion: "2.0" })
+  ];
+  for (const load of loaders) {
     try {
       return await load(videoId);
     } catch (error) {

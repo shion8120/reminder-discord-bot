@@ -12,7 +12,10 @@ const { maybeCheckDeals } = require("./deals");
 const COLOR_VIDEO = 0x3b82f6;
 const COLOR_MULTI = 0xf59e0b;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const VIDEO_DELAY_MS = 1500;
+const VIDEO_DELAY_MS = 4000;
+// 続けて弾かれたら、しばらく動画の取得を休む
+const FAIL_LIMIT = 5;
+const COOLDOWN_MS = 45 * 60 * 1000;
 // 動画タブに出ない古いセール動画は、チャンネル内検索で1日1回拾う
 const SALE_QUERIES = ["セール", "プライムデー", "ブラックフライデー"];
 
@@ -111,6 +114,7 @@ async function processChannel(state, listedChannel, config, notifier) {
   const cutoff = Date.now() - config.maxAgeDays * DAY_MS;
   let added = 0;
   let failed = 0;
+  let streak = 0;
 
   for (const listed of fresh.reverse()) {
     if (state.videos[listed.videoId]) continue;
@@ -120,7 +124,13 @@ async function processChannel(state, listedChannel, config, notifier) {
       video = await completeVideo(listed);
     } catch (error) {
       failed += 1;
-      if (failed <= 3) console.warn(`${listedChannel.name}: ${error.message}`);
+      streak += 1;
+      if (failed <= 2) console.warn(`${listedChannel.name}: ${error.message}`);
+      if (streak >= FAIL_LIMIT) {
+        state.blockedUntil = new Date(Date.now() + COOLDOWN_MS).toISOString();
+        console.warn(`${listedChannel.name}: 連続${streak}件失敗。${COOLDOWN_MS / 60000}分休みます`);
+        break;
+      }
       continue;
     }
 
@@ -139,6 +149,7 @@ async function processChannel(state, listedChannel, config, notifier) {
       continue;
     }
 
+    streak = 0;
     const record = {
       channelId: channel.channelId,
       title: video.title,
@@ -180,6 +191,10 @@ async function checkOnce(config, store, notifier, onUpdate) {
   const state = await store.read();
 
   for (const channel of channels) {
+    if (state.blockedUntil && Date.now() < Date.parse(state.blockedUntil)) {
+      console.log(`休止中（${state.blockedUntil} まで）`);
+      break;
+    }
     try {
       await processChannel(state, channel, config, notifier);
     } catch (error) {
