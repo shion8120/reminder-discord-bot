@@ -15,7 +15,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const VIDEO_DELAY_MS = 4000;
 // 続けて弾かれたら、しばらく動画の取得を休む
 const FAIL_LIMIT = 5;
-const COOLDOWN_MS = 45 * 60 * 1000;
+const COOLDOWN_MS = 3 * 60 * 60 * 1000;
 // 動画タブに出ない古いセール動画は、チャンネル内検索で1日1回拾う
 const SALE_QUERIES = ["セール", "プライムデー", "ブラックフライデー"];
 

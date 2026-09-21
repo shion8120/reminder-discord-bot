@@ -20,7 +20,7 @@ function getConfig() {
     dataDir: process.env.BOT_DATA_DIR?.trim()
       ? path.resolve(process.env.BOT_DATA_DIR.trim())
       : path.join(__dirname, "..", "data"),
-    pollMinutes: numberEnv("POLL_MINUTES", 60),
+    pollMinutes: numberEnv("POLL_MINUTES", 180),
     // これより古い動画は商品を拾わない（価格も在庫も変わっていて使えない）
     maxAgeDays: numberEnv("MAX_AGE_DAYS", 400),
     // Amazonのセールを見に行くJSTの時刻（既定 8時と20時）
