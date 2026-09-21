@@ -206,6 +206,8 @@ async function checkOnce(config, store, notifier, onUpdate) {
 
   try {
     await maybeCheckDeals(state, config);
+    await store.write(state);
+    onUpdate(state);
   } catch (error) {
     console.warn(`セール確認: ${error.message}`);
   }

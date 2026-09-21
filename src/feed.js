@@ -48,6 +48,7 @@ function productLine(item) {
 }
 
 function buildFeed(state, channels) {
+  const now = Date.now();
   const channelById = Object.fromEntries(channels.map((channel) => [channel.channelId, channel]));
   const items = Object.entries(state.products).map(([asin, product]) => summarize(asin, product));
   const itemByAsin = Object.fromEntries(items.map((item) => [item.asin, item]));
@@ -151,7 +152,7 @@ function buildFeed(state, channels) {
   return {
     markdown: `${lines.filter((line, index, all) => !(line === "" && all[index - 1] === "")).join("\n").trim()}\n`,
     json: `${JSON.stringify(
-      { generatedAt: new Date().toISOString(), lastCheckedAt: state.lastCheckedAt, channels, videos: state.videos, products: state.products },
+      { generatedAt: new Date().toISOString(), lastCheckedAt: state.lastCheckedAt, channels, videos: state.videos, products: state.products, deals: state.deals || {}, dealsCheckedAt: state.dealsCheckedAt || null },
       null,
       2
     )}\n`
